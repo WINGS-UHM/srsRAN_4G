@@ -44,7 +44,7 @@ public:
   void stop() final;
   void reset_nr() final;
 
-  void start_plot() final {}
+  void start_plot() final ;
 
   void radio_overflow() final {}
   void radio_failure() final {}

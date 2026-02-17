@@ -163,14 +163,26 @@ void sf_worker::set_prach(cf_t* prach_ptr_, float prach_power_)
 #ifdef ENABLE_GUI
 extern plot_scatter_t pconst_nr;
 extern bool           pconst_nr_ready;
+extern bool plot_quit;
 #define SCATTER_PDSCH_PLOT_LEN 4000
 static cf_t tmp_pconst_nr[SRSRAN_NSYMB_PER_SLOT_NR * SRSRAN_NRE * SRSRAN_MAX_PRB_NR] = {};
-extern bool plot_quit;
 
 static void* plot_thread_run(void* arg)
 {
   auto worker         = (srsue::nr::sf_worker*)arg;
   int  pdsch_re_count = 0;
+  
+  // Fallback: in NR-SA, LTE never created the plot, so do it here once.
+  if (!pconst_nr_ready) {
+    sdrgui_init();
+    plot_scatter_init(&pconst_nr);
+    plot_scatter_setTitle(&pconst_nr, (char*)"NR - PDSCH - Equalized Symbols");
+    plot_scatter_setXAxisScale(&pconst_nr, -4, 4);
+    plot_scatter_setYAxisScale(&pconst_nr, -4, 4);
+    plot_scatter_addToWindowGrid(&pconst_nr, (char*)"srsue", 0, 0);
+    pconst_nr_ready = true;
+  }
+  pconst_nr_ready = true;
   while (!plot_quit) {
     sem_wait(&plot_sem);
 

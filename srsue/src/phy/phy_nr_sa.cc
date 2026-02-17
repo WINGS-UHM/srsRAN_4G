@@ -75,7 +75,6 @@ int phy_nr_sa::init(const phy_args_nr_t& args_, stack_interface_phy_nr* stack_, 
   args  = args_;
   stack = stack_;
   radio = radio_;
-
   // Add PHY lib log
   auto lib_log_level = srslog::str_to_basic_level(args.log.phy_lib_level);
   logger_phy_lib.set_level(lib_log_level);
@@ -280,4 +279,20 @@ bool phy_nr_sa::set_config(const srsran::phy_cfg_nr_t& cfg)
   return true;
 }
 
+  // Defened Plot function for 5G-SA mode 
+  void phy_nr_sa::start_plot()
+  {
+    // Ensure init_background() has completed (workers.init must be done)
+    if (init_thread.joinable()) {
+      init_thread.join();
+    }
+
+  #ifdef ENABLE_GUI
+    // Start GUI plotting from the first NR SF worker
+    workers[0]->start_plot();
+  #else
+    srsran::console("Trying to start a plot but plots are disabled (ENABLE_GUI)\n");
+  #endif
+  }
 } // namespace srsue
+
