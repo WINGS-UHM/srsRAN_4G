@@ -627,16 +627,25 @@ static int uhd_init(rf_uhd_handler_t* handler, char* args, uint32_t nof_channels
   // Initialize handler
   handler->uhd_error_handler = nullptr;
 
-  // Check external clock argument
+  // clock selects the frequency reference (external selects the 10 MHz input).
   std::string clock_src = "internal";
   if (device_addr.has_key("clock")) {
     clock_src = device_addr.pop("clock");
   }
 
-  // Select same synchronization source only if more than one channel is opened
+  // Preserve the channel-dependent time/PPS source unless sync explicitly overrides it.
   std::string sync_src = "internal";
   if (nof_channels > 1) {
     sync_src = clock_src;
+  }
+  if (device_addr.has_key("sync")) {
+    sync_src = device_addr.pop("sync");
+  }
+
+  // External PPS requires the external frequency reference, regardless of channel count.
+  if (sync_src == "external" and clock_src != "external") {
+    ERROR("External PPS (sync=external) requires clock=external");
+    return SRSRAN_ERROR;
   }
 
   // Logging level
@@ -888,9 +897,13 @@ static int uhd_init(rf_uhd_handler_t* handler, char* args, uint32_t nof_channels
     }
   }
 
-  // Reset timestamps
-  if (nof_channels > 1 and clock_src != "gpsdo") {
-    handler->uhd->set_time_unknown_pps(uhd::time_spec_t());
+  // Reset timestamps on PPS, including single-channel external PPS; GPSDO sets its own time above.
+  if ((nof_channels > 1 or sync_src == "external") and clock_src != "gpsdo") {
+    // Propagate UHD's missing-PPS timeout and other initialization errors.
+    if (handler->uhd->set_time_unknown_pps(uhd::time_spec_t()) != UHD_ERROR_NONE) {
+      ERROR("Could not initialize USRP timestamps using PPS source '%s'", sync_src.c_str());
+      return SRSRAN_ERROR;
+    }
   }
 
 #if HAVE_ASYNC_THREAD
